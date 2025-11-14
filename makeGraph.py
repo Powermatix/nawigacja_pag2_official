@@ -3,10 +3,11 @@ from pyogrio.errors import DataSourceError
 from graph import Graph
 import geopandas as gpd
 
-roadClasses = {'droga wewnętrzna': 20, 'droga dojazdowa': 30, 'droga lokalna': 30, 'droga zbiorcza': 50,
-               'droga główna': 70, 'droga główna ruchu przyśpieszonego': 90, 'droga ekspresowa': 120, 'autostrada': 140}
+roadClasses = {'droga wewnętrzna': 20, 'droga dojazdowa': 30, 'droga lokalna': 50, 'droga zbiorcza': 70,
+               'droga główna': 70, 'droga główna ruchu przyśpieszonego': 100, 'droga ekspresowa': 120, 'autostrada': 140,
+               'A':140,'S':120,'GP':100,'G':70,'Z':70,'L':50,'D':30,'I':20}
 
-columnNames = {'klasa_drogi', 'klasa_drog', 'klasa'}
+columnNames = {'klasa_drogi', 'klasa_drog', 'klasadrogi'}
 
 
 def makeGraph(shapePath: str):
