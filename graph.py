@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple
 import math
 class Node:
     def __init__(self, node_id: str , x: float = 0.0, y: float = 0.0, name: str="" ):
@@ -7,11 +7,7 @@ class Node:
         self.y = y
         self.name = name or node_id
 
-    #Getter methods
-    def __repr__(self):
-        pass
-
-    def __eq__(self,other):
+    def __eq__(self, other):
         return isinstance(other, Node) and self.id == other.id
     
     def __hash__(self):
@@ -24,8 +20,6 @@ class Edge:
         self.weight = weight
         self.name = name
 
-    def __repr__(self):
-        pass
 
 class Graph:
 
@@ -41,18 +35,21 @@ class Graph:
             return node
         return self.nodes[node_id]
 
-    def add_edge(self, from_node: str, to_node:str, weight: float, name: str="", bidirectional: bool =True):
+    def add_edge(self, from_node: tuple[float, float], to_node: tuple[float, float], weight: float, name: str = "",
+                 bidirectional: bool = True):
+        from_nodeId = '_'.join(str(val) for val in from_node)
+        to_nodeId = '_'.join(str(val) for val in to_node)
         if from_node not in self.nodes:
-            self.add_node(from_node)
+            self.add_node(from_nodeId, from_node[0], from_node[1])
         if to_node not in self.nodes:
-            self.add_node(to_node)
+            self.add_node(to_nodeId, to_node[0], to_node[1])
 
-        edge = Edge(from_node, to_node, weight, name)
-        self.edges[from_node].append(edge)
+        edge = Edge(from_nodeId, to_nodeId, weight, name)
+        self.edges[from_nodeId].append(edge)
 
         if bidirectional:
-            reverse_edge = Edge(to_node, from_node, weight, name)
-            self.edges[to_node].append(reverse_edge)
+            reverse_edge = Edge(to_nodeId, from_nodeId, weight, name)
+            self.edges[to_nodeId].append(reverse_edge)
 
     def get_neighbors(self, node_id:str) -> List[Tuple[str,float]]:
         if node_id not in self.edges:
@@ -63,7 +60,5 @@ class Graph:
         return self.nodes.get(node_id)
     
     def distance(self, node1_id: str, node2_id: str) -> float:
-        return math.sqrt((self.nodes[node1_id].x - self.nodes[node2_id].x) ** 2 + (self.nodes[node1_id].y - self.nodes[node2_id].y) ** 2)
-    
-    def __repr__(self):
-        pass
+        return math.sqrt((self.nodes[node1_id].x - self.nodes[node2_id].x) ** 2 + (
+                    self.nodes[node1_id].y - self.nodes[node2_id].y) ** 2)
