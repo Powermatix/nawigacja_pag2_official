@@ -213,6 +213,7 @@ def reconstruct_path(current_id, nodes):
         path.insert(0, current_id)
         current_id = nodes[current_id]['p']
     return path
-
-nodes, edges = generate_cartesian(1,1,6,6)
-print(astar("1_1","6_6",nodes,edges))
+    
+if __name__ == "__main__":
+    nodes, edges = generate_cartesian(1,1,6,6)
+    print(astar("1_1","6_6",nodes,edges))
