@@ -1,14 +1,30 @@
-# dict version of makeGraph.py for use in searching
-# TODO make modules for astar and demos
+# creates dict-graph from .shp file
+# to use astar see wrapper.py
+# .shx needs to be in the same directory
 
 import shapely
 from pyogrio.errors import DataSourceError
-from astar import *
 import geopandas as gpd
+from math import inf
 
-roadClasses = {'droga wewnętrzna': 20, 'droga dojazdowa': 30, 'droga lokalna': 50, 'droga zbiorcza': 70,
-               'droga główna': 70, 'droga główna ruchu przyśpieszonego': 100, 'droga ekspresowa': 120, 'autostrada': 140,
-               'A':140,'S':120,'GP':100,'G':70,'Z':70,'L':50,'D':30,'I':20}
+ID = 0
+
+def generate_id():
+    global ID
+    ID += 1
+    return ID
+
+# different default case
+def get_weight(length, road_class):
+    if road_class == 'NA':
+        w = length/50
+    else:
+        w = length/road_class
+    if w < 0:
+        print("WARNING: negative weight!!!!1! ABORT with ctrl-c")
+    return w
+
+roadClasses = {'droga wewnętrzna': 20, 'droga dojazdowa': 30, 'droga lokalna': 50, 'droga zbiorcza': 70, 'droga główna': 70, 'droga główna ruchu przyśpieszonego': 100, 'droga ekspresowa': 120, 'autostrada': 140, 'A':140,'S':120,'GP':100,'G':70,'Z':70,'L':50,'D':30,'I':20}
 
 columnNames = {'klasa_drogi', 'klasa_drog', 'klasadrogi'}
 
@@ -34,34 +50,27 @@ def make_dict(shapePath: str):
 
         for line in lines.itertuples():
             lineLength = shapely.length(line.geometry)
-            add_edge(nodes, edges, tuple(round(val, 0) for val in line.geometry.coords[0]),
-                           tuple(round(val, 0) for val in line.geometry.coords[-1]),
-                           lineLength)
+            add_edge(nodes, edges, tuple(round(val, 0) for val in line.geometry.coords[0]), tuple(round(val, 0) for val in line.geometry.coords[-1]), get_weight(lineLength, "NA"))
 
     else:
         colName = colNameIntersection.pop()
         for line in lines.itertuples():
             lineLength = shapely.length(line.geometry)
-            add_edge(nodes, edges, tuple(round(val, 0) for val in line.geometry.coords[0]),
-                           tuple(round(val, 0) for val in line.geometry.coords[-1]),
-                           lineLength / roadClasses[getattr(line, colName)])
-
+            add_edge(nodes, edges, tuple(round(val, 0) for val in line.geometry.coords[0]), tuple(round(val, 0) for val in line.geometry.coords[-1]), get_weight(lineLength, roadClasses[getattr(line, colName)]))
     return nodes, edges
 
-# almost the same usage, diff: nodes, no name
-# will overwrite duplicate nodes
-# not fixed, because add_edge will discard duplicate nodes prior
+# will overwrite duplicate nodes - not fixed, because add_edge will discard duplicate nodes prior
 def add_node(nodes, node_id: str, x:float = 0.0, y:float = 0.0):
     nodes[node_id] = {
                         "x" : x,
                         "y" : y,
-                        "g" : math.inf,
-                        "h" : math.inf,
-                        "f" : math.inf,
+                        "g" : inf,
+                        "h" : inf,
+                        "f" : inf,
                         "p" : None
                         }
 
-# almost the same usage, diff: nodes, no name (can add dummy name parameter)
+# supports edge_ids now
 def add_edge(nodes, edges, from_node: tuple[float, float], to_node: tuple[float, float], weight: float):
     node_id1 = '_'.join(str(val) for val in from_node)
     node_id2 = '_'.join(str(val) for val in to_node)
@@ -71,18 +80,23 @@ def add_edge(nodes, edges, from_node: tuple[float, float], to_node: tuple[float,
     if node_id2 not in nodes.keys():
         add_node(nodes, node_id2, to_node[0], to_node[1])
 
-    # diff: generating edge_ids
-    # TODO allow duplicate edges by generating unique ids
-    # TODO add every edge 2 times to simulate bidirectionality
-    edge_id = '_'.join(str(val) for val in [node_id1, node_id2])
-    edges[edge_id] = {
+    edge_id1 = generate_id()
+
+    edges[edge_id1] = {
                              "s" : node_id1,
                              "e" : node_id2,
                              "w" : weight
                             }
 
+    # uncomment for bidirectional
+    edge_id2 = generate_id()
+    edges[edge_id2] = {
+                             "s" : node_id2,
+                             "e" : node_id1,
+                             "w" : weight
+                            }
+
 if __name__ == "__main__":
-    nodes, edges = make_dict("drogi.shp")
-    plot_edges(edges, nodes)
-    plot_nodes(nodes)
-    plt.show()
+    nodes, edges = make_dict("shp/drogi.shp")
+    # print(edges)
+    # print(nodes)
