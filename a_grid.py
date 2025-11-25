@@ -67,3 +67,4 @@ def generate_cartesian(min_x, min_y, max_x, max_y):
                                         "w" : 1.4
                                        }
     return(nodes, edges)
+    
