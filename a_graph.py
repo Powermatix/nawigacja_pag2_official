@@ -95,8 +95,3 @@ def add_edge(nodes, edges, from_node: tuple[float, float], to_node: tuple[float,
                              "e" : node_id1,
                              "w" : weight
                             }
-
-if __name__ == "__main__":
-    nodes, edges = make_dict("shp/drogi.shp")
-    # print(edges)
-    # print(nodes)
