@@ -108,4 +108,3 @@ def astar_wrapper(start_id, end_id, in_graph : Graph, shortest=False):
         return None
     coords = [in_graph.get_edge_geometry(val[1]) for val in path[1:]]
     return coords
-

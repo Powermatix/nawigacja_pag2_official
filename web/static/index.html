@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nawigacja Graph Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; }
+    header { padding: 10px 14px; background: #1f2937; color: white; }
+  main { display: grid; grid-template-columns: 360px 1fr; gap: 10px; padding: 10px; }
+    .panel { border-right: 1px solid #ddd; padding: 10px; }
+    .row { margin-bottom: 10px; }
+    label { display: block; font-size: 12px; color: #374151; margin-bottom: 4px; }
+    input, button { width: 100%; padding: 8px; font-size: 14px; }
+  #log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px; height: 120px; overflow: auto; }
+  #nodesContainer { border: 1px solid #e5e7eb; background:#fff; height:180px; overflow:auto; font-size:12px; padding:6px; }
+  .small { font-size:11px; }
+  .node-item { cursor:pointer; padding:2px 4px; border-radius:3px; }
+  .node-item:hover { background:#eef; }
+  .sel-start { background:#16a34a !important; color:#fff; }
+  .sel-end { background:#dc2626 !important; color:#fff; }
+  #controls { display:flex; gap:6px; flex-wrap:wrap; }
+    #map { height: calc(100vh - 70px); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Nawigacja - Graph Web UI</h1>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="row">
+        <label>Ścieżka do shapefile</label>
+        <input id="shp" placeholder="/path/to/shapefile.shp" />
+        <button id="btnLoad">Załaduj</button>
+      </div>
+      <div class="row">
+        <div id="controls">
+          <!-- <button id="btnList">Załaduj listę węzłów</button> -->
+          <!-- <label class="small"><input type="checkbox" id="toggleLabels"> Etykiety</label> -->
+          <label class="small"><input type="radio" name="mode" value="start" checked> Wybierz start</label>
+          <label class="small"><input type="radio" name="mode" value="end"> Wybierz koniec</label>
+        </div>
+        <div id="nodesContainer"></div>
+      </div>
+      <div class="row">
+        <label>Algorytm</label>
+        <label class="small"><input type="checkbox" id="useDijkstra"> Użyj Dijkstra (zamiast A*)</label>
+        <label class="small"><input type="radio" name="criteria" value="shortest" checked> Najkrótsza trasa</label>
+        <label class="small"><input type="radio" name="criteria" value="fastest"> Najszybsza trasa</label>
+      </div>
+      <div class="row">
+        <label>id węzła startowego</label>
+        <input id="startId" placeholder="e.g., 471406.57_574857.83" />
+      </div>
+      <div class="row">
+        <label>id węzła końcowego</label>
+        <input id="endId" placeholder="e.g., 472169.4_574351.42" />
+      </div>
+      <div class="row">
+        <button id="btnPath">Oblicz trasę</button>
+      </div>
+      <div class="row">
+        <!-- <pre id="log"></pre> -->
+      </div>
+    </section>
+    <section>
+      <div id="map"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- <script src="proj4.js"></script>
+  <script src="proj4leaflet.js"></script> -->
+  <script>
+    //TODO: background map: done 
+  const map = L.map('map', { 
+     minZoom: 2, maxZoom: 50, zoomSnap: 0.5 });//max zoom jest problematyczny
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const layer = L.layerGroup().addTo(map);
+  const pathLayer = L.layerGroup().addTo(map);
+  const labelLayer = L.layerGroup().addTo(map);
+  let allNodes = []; // {id,x,y}
+  let selectedStart = null;
+  let selectedEnd = null;
+  let startMarker = null;
+  let endMarker = null;
+
+    function fitToFeatures(features) {
+      let xs = [], ys = [];
+      features.forEach(f => {
+        if (f.geometry.type === 'LineString') {
+          f.geometry.coordinates.forEach(([x,y]) => { xs.push(x); ys.push(y); });
+        } else if (f.geometry.type === 'Point') {
+          const [x,y] = f.geometry.coordinates; xs.push(x); ys.push(y);
+        }
+      });
+      if (xs.length) {
+        const minx = Math.min(...xs), maxx = Math.max(...xs);
+        const miny = Math.min(...ys), maxy = Math.max(...ys);
+        const bounds = L.latLngBounds(L.latLng(miny, minx), L.latLng(maxy, maxx));
+        map.fitBounds(bounds.pad(0.1));
+      } else {
+        map.setView([0,0], 1);
+      }
+    }
+
+    async function loadGraph() {
+      const shp = document.getElementById('shp').value.trim();
+      const res = await fetch('/api/load', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shp_path: shp })
+      });
+      const data = await res.json();
+      console.log(JSON.stringify(data, null, 2));
+      if (!data.ok) return;
+      const g = await (await fetch('/api/graph')).json();
+      drawGraph(g);
+      await loadAllNodes();
+    }
+
+    function drawGraph(geo) {
+      layer.clearLayers();
+      labelLayer.clearLayers();
+      (geo.features || []).forEach(f => {
+        if (f.geometry.type === 'LineString') {
+          const latlngs = f.geometry.coordinates.map(([x,y]) => [y,x]);
+          //bez rusowania linii - dużo szybciej
+          // L.polyline(latlngs, { color: '#999', weight: 1 }).addTo(layer);
+        } else if (f.geometry.type === 'Point') {
+          // const [x,y] = f.geometry.coordinates;
+          // bez rysowania punktów - niewiele szybciej
+          // const m = L.circleMarker([y,x], { radius: 2, color: '#1f77b4' }).addTo(layer);
+          // if (document.getElementById('toggleLabels').checked) {
+          //   m.bindTooltip(f.properties.id, {permanent:true, direction:'top', className:'nodeLabel'}).openTooltip();
+          // }
+        }
+      });
+      fitToFeatures(geo.features || []);
+    }
+
+    async function listNodes() {
+      
+      if (!allNodes.length) await loadAllNodes();
+      const cont = document.getElementById('nodesContainer');
+      cont.innerHTML = '';
+      allNodes.forEach(n => {
+        const div = document.createElement('div');
+        div.textContent = n.id;
+        div.className = 'node-item';
+        div.addEventListener('click', () => selectNodeFromList(n));
+        if (selectedStart === n.id) div.classList.add('sel-start');
+        if (selectedEnd === n.id) div.classList.add('sel-end');
+        cont.appendChild(div);
+      });
+    }
+
+    async function loadAllNodes() {
+      const data = await (await fetch('/api/nodes_all')).json();
+      if (data.ok) {
+        allNodes = data.nodes;
+        listNodes();
+      }
+    }
+
+    function selectNodeFromList(n) {
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      if (mode === 'start') {
+        selectedStart = n.id;
+        document.getElementById('startId').value = n.id;
+      } else {
+        selectedEnd = n.id;
+        document.getElementById('endId').value = n.id;
+      }
+      listNodes();
+      updateSelectionMarkers();
+      
+      try { map.setView([n.y, n.x], Math.max(map.getZoom(), 5)); } catch {}
+    }
+
+    async function computePath() {
+      const s = document.getElementById('startId').value.trim();
+      const e = document.getElementById('endId').value.trim();
+      const criteria = document.querySelector('input[name="criteria"]:checked').value;
+      const useDijkstra = document.getElementById('useDijkstra').checked;
+      
+      const res = await fetch('/api/path', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          start_id: s, 
+          end_id: e, 
+          criteria: criteria,
+          use_dijkstra: useDijkstra
+        })
+      });
+      const data = await res.json();
+      console.log(JSON.stringify(data, null, 2));
+      if (data.ok && data.feature) {
+        drawPathFeature(data.feature);
+      }
+    }
+
+    function drawPathFeature(f) {
+      pathLayer.clearLayers();
+      if (f.geometry.type === 'LineString') {
+        const latlngs = f.geometry.coordinates.map(([x,y]) => [y,x]);
+        const pl = L.polyline(latlngs, { color: '#ff4136', weight: 3 }).addTo(pathLayer);
+        try {
+          const b = pl.getBounds();
+          if (b && b.isValid()) map.fitBounds(b.pad(0.1));
+        } catch {}
+      }
+    }
+
+    function updateSelectionMarkers() {
+      if (startMarker) startMarker.remove();
+      if (endMarker) endMarker.remove();
+      if (selectedStart) {
+        const n = allNodes.find(nn => nn.id === selectedStart);
+        if (n) startMarker = L.circleMarker([n.y, n.x], {radius:5,color:'#16a34a'}).addTo(pathLayer).bindTooltip('START', {permanent:true, direction:'top'});
+      }
+      if (selectedEnd) {
+        const n = allNodes.find(nn => nn.id === selectedEnd);
+        if (n) endMarker = L.circleMarker([n.y, n.x], {radius:5,color:'#dc2626'}).addTo(pathLayer).bindTooltip('KONIEC', {permanent:true, direction:'top'});
+      }
+    }
+
+    map.on('click', (e) => {
+      if (!allNodes.length) return;
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const x = e.latlng.lng; // bo mapowaliśmy [y,x]
+      const y = e.latlng.lat;
+      let best = null, bestDist = Infinity;
+      for (const n of allNodes) {
+        const dx = n.x - x; const dy = n.y - y;
+        const d = dx*dx + dy*dy;
+        if (d < bestDist) { bestDist = d; best = n; }
+      }
+      if (best) {
+        if (mode === 'start') {
+          selectedStart = best.id;
+          document.getElementById('startId').value = best.id;
+        } else {
+          selectedEnd = best.id;
+          document.getElementById('endId').value = best.id;
+        }
+        listNodes();
+        updateSelectionMarkers();
+      }
+    });
+
+    // document.getElementById('toggleLabels').addEventListener('change', async () => {
+    //   // Redraw graph with labels on/off
+    //   const g = await (await fetch('/api/graph')).json();
+    //   drawGraph(g);
+    // });
+
+    // function log(msg) {
+    //   const el = document.getElementById('log');
+    //   el.textContent = msg + '\n' + el.textContent;
+    // }
+
+    document.getElementById('btnLoad').addEventListener('click', loadGraph);
+    //document.getElementById('btnList').addEventListener('click', listNodes);
+    document.getElementById('btnPath').addEventListener('click', computePath);
+
+    // initial widok
+    map.setView([52.0, 19.0], 6);
+  </script>
+</body>
+</html>
