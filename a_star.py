@@ -4,7 +4,9 @@ import heapq
 # tylko do debugowania
 PRINT = False
 
-def heuristic(node_id1 : str, node_id2 : str, nodes):
+def heuristic(node_id1 : str, node_id2 : str, nodes, dijkstra=False):
+    if dijkstra:
+        return 0
     sx, sy = node_id1.split('_')
     ex, ey = node_id2.split('_')
     # sx, sy = nodes[node_id1].x,nodes[node_id1].y
@@ -12,7 +14,7 @@ def heuristic(node_id1 : str, node_id2 : str, nodes):
     return round((float(sx)-float(ex))**2+(float(sy)-float(ey))**2)**0.5
 
 
-def astar(start_id, end_id, in_graph : Graph, shortest=False):
+def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
     global PLOT
     global PLOT_EXT
     global PRINT
@@ -20,7 +22,7 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False):
     nodes = in_graph.nodes
 
     g = 0
-    h = heuristic(start_id, end_id, nodes)
+    h = heuristic(start_id, end_id, nodes, dijkstra)
     f = g+h
 
     open_lst = [[0, start_id]]
@@ -45,48 +47,37 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False):
         current_id = heapq.heappop(open_lst)[1]
         if PRINT:
             print(f'current: {current_id}')
-        
+        if current_id == end_id:
+            return reconstruct_path(current_id,nodes)
         # neighbor to tuple zawierający: (edge_id, neighbor_id, neighbor_weight, neighbor_length)
         for neighbor in in_graph.get_neighbors(current_id):
             if PRINT:
                 print(f"\tneighbor:{neighbor[1]}, {neighbor[edge_weight_idx]}")
-            if neighbor[1] == end_id:
                 # if PLOT:
                 #     plot_edges(edges,nodes)
                 #     plot_nodes_color(nodes, current_id, open_lst, closed_lst)
                 #     plt.show()
 
-                all_nodes = [node[1] for node in open_lst]
-                all_nodes += closed_lst
-                for node_id in all_nodes:
-                    nodes[node_id].g = math.inf
-                    nodes[node_id].h = math.inf
-                    nodes[node_id].f = math.inf
+            g = nodes[current_id].g + neighbor[edge_weight_idx]
+            h = heuristic(neighbor[1],end_id,nodes, dijkstra)
+            f = g+h
 
-
+            if f > nodes[neighbor[1]].f:
+                if PRINT:
+                    print(f"\t\tcase: not opt")
+                    print(f"{f},{nodes[neighbor[1]].f}")
+            elif neighbor[1] in closed_lst:
+                if PRINT:
+                    print(f"\t\tcase: closed")
+            else:
+                heapq.heappush(open_lst,[f,neighbor[1]])
+                nodes[neighbor[1]].g = g
+                nodes[neighbor[1]].h = h
+                nodes[neighbor[1]].f = f
                 nodes[neighbor[1]].p = current_id
                 nodes[neighbor[1]].e = neighbor[0]
-                return reconstruct_path(neighbor[1], nodes)
-            else:
-                g = nodes[current_id].g + neighbor[edge_weight_idx]
-                h = heuristic(neighbor[1],end_id,nodes)
-                f = g+h
-                if f > nodes[neighbor[1]].f:
-                    if PRINT:
-                        print(f"\t\tcase: not opt")
-                        print(f"{f},{nodes[neighbor[1]].f}")
-                elif neighbor[1] in closed_lst:
-                    if PRINT:
-                        print(f"\t\tcase: closed")
-                else:
-                    heapq.heappush(open_lst,[f,neighbor[1]])
-                    nodes[neighbor[1]].g = g
-                    nodes[neighbor[1]].h = h
-                    nodes[neighbor[1]].f = f
-                    nodes[neighbor[1]].p = current_id
-                    nodes[neighbor[1]].e = neighbor[0]
-                    if PRINT:
-                        print(f"\t\tcase: update")
+                if PRINT:
+                    print(f"\t\tcase: update")
         closed_lst.append(current_id)
         if PRINT:
             print(f"open: {open_lst}")
@@ -112,6 +103,6 @@ def astar_wrapper(start_id, end_id, in_graph : Graph, shortest=False):
     path = astar(start_id,end_id,in_graph,shortest)
     if path is None:
         return None
-    coords = [in_graph.get_edge(val[0], val[1]).all_nodes for val in path[1:]]
+    coords = [in_graph.get_edge_geometry(val[1]) for val in path[1:]]
     return coords
 
