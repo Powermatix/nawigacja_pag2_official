@@ -108,3 +108,10 @@ def reconstruct_path(current_id, nodes):
         current_id = nodes[current_id].p
     return path
 
+def astar_wrapper(start_id, end_id, in_graph : Graph, shortest=False):
+    path = astar(start_id,end_id,in_graph,shortest)
+    if path is None:
+        return None
+    coords = [in_graph.get_edge(val[0], val[1]).all_nodes for val in path[1:]]
+    return coords
+
