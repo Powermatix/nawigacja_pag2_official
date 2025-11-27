@@ -48,6 +48,12 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
         if PRINT:
             print(f'current: {current_id}')
         if current_id == end_id:
+            all_nodes = [node[1] for node in open_lst]
+            all_nodes += closed_lst
+            for node_id in all_nodes:
+                nodes[node_id].g = math.inf
+                nodes[node_id].h = math.inf
+                nodes[node_id].f = math.inf
             return reconstruct_path(current_id,nodes)
         # neighbor to tuple zawierający: (edge_id, neighbor_id, neighbor_weight, neighbor_length)
         for neighbor in in_graph.get_neighbors(current_id):
