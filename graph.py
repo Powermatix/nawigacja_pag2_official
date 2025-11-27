@@ -1,24 +1,31 @@
 from typing import Dict, List, Tuple
 import math
 class Node:
-    def __init__(self, node_id: str , x: float = 0.0, y: float = 0.0, name: str="" ):
-        self.id = node_id
+    def __init__(self,x: float = 0.0, y: float = 0.0):
         self.x = x
         self.y = y
-        self.name = name or node_id
 
-    def __eq__(self, other):
-        return isinstance(other, Node) and self.id == other.id
-    
-    def __hash__(self):
-        return hash(self.id)
+        #atrybuty przechowujące wartości wykorzystywane w A*
+        self.g = math.inf
+        self.h = math.inf
+        self.f = math.inf
+
+        #wierzchołek poprzedzający znajdowany w A*
+        self.p = None
+
+        # wybrana przez algorytm krawędź grafu
+        # (w przypadku gdy między wierzchołkami jest więcej niż jedna)
+        self.e = None
+
     
 class Edge:
-    def  __init__(self, from_node: str, to_node: str, weight:float, name: str=""):
+    def  __init__(self,edge_id: int, from_node: str, to_node: str, weight:float, length:float, all_nodes):
+        self.edge_id = edge_id
         self.from_node = from_node
         self.to_node = to_node
         self.weight = weight
-        self.name = name
+        self.length = length
+        self.all_nodes = all_nodes
 
 
 class Graph:
@@ -26,16 +33,17 @@ class Graph:
     def __init__(self):
         self.nodes: Dict[str, Node ] = {}
         self.edges: Dict[str, List[Edge]] = {}
+        self.edge_id_count = 0
 
-    def add_node(self, node_id: str, x:float = 0.0, y:float = 0.0, name: str="") -> Node:
+    def add_node(self, node_id: str, x:float = 0.0, y:float = 0.0) -> Node:
         if node_id not in self.nodes:
-            node= Node(node_id, x, y, name)
+            node = Node(x, y)
             self.nodes[node_id] = node
             self.edges[node_id] = []
             return node
         return self.nodes[node_id]
 
-    def add_edge(self, from_node: tuple[float, float], to_node: tuple[float, float], weight: float, name: str = "",
+    def add_edge(self, from_node: tuple[float, float], to_node: tuple[float, float], weight: float, length:float, nodes,
                  bidirectional: bool = True):
         from_nodeId = '_'.join(str(val) for val in from_node)
         to_nodeId = '_'.join(str(val) for val in to_node)
@@ -44,20 +52,33 @@ class Graph:
         if to_node not in self.nodes:
             self.add_node(to_nodeId, to_node[0], to_node[1])
 
-        edge = Edge(from_nodeId, to_nodeId, weight, name)
+        edge = Edge(self.edge_id_count,from_nodeId, to_nodeId, weight, length, nodes)
+        self.edge_id_count += 1
         self.edges[from_nodeId].append(edge)
 
         if bidirectional:
-            reverse_edge = Edge(to_nodeId, from_nodeId, weight, name)
-            self.edges[to_nodeId].append(reverse_edge)
+            # reverse_edge = Edge(self.edge_id_count,to_nodeId, from_nodeId, weight,length,nodes)
+            # self.edge_id_count += 1
+            self.edges[to_nodeId].append(edge)
 
-    def get_neighbors(self, node_id:str) -> List[Tuple[str,float]]:
+    def get_neighbors(self, node_id:str) -> List[Tuple[int,str,float,float]]:
         if node_id not in self.edges:
             return []
-        return [(edge.to_node, edge.weight) for edge in self.edges[node_id]]
+        neighbors = []
+        for edge in self.edges[node_id]:
+            other_node = edge.to_node if edge.to_node != node_id else edge.from_node
+            neighbors.append((edge.edge_id, other_node, edge.weight, edge.length))
+        return neighbors
 
     def get_node(self, node_id:str) -> Node:
         return self.nodes.get(node_id)
+
+    def get_edge(self, node_id:str,edge_id:str) -> Edge:
+        edges_list = self.edges[node_id]
+        for edge in edges_list:
+            if edge.edge_id == edge_id:
+                return edge
+
     
     def distance(self, node1_id: str, node2_id: str) -> float:
         return math.sqrt((self.nodes[node1_id].x - self.nodes[node2_id].x) ** 2 + (
