@@ -6,19 +6,6 @@ class Node:
     def __init__(self,x: float = 0.0, y: float = 0.0):
         self.x = x
         self.y = y
-
-        #atrybuty przechowujące wartości wykorzystywane w A*
-        self.g = math.inf
-        self.h = math.inf
-        self.f = math.inf
-
-        #wierzchołek poprzedzający znajdowany w A*
-        self.p = None
-
-        # wybrana przez algorytm krawędź grafu
-        # (w przypadku gdy między wierzchołkami jest więcej niż jedna)
-        self.e = None
-
     
 class Edge:
     def  __init__(self,edge_id: int, from_node: str, to_node: str, weight:float, length:float):
