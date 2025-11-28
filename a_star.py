@@ -1,4 +1,3 @@
-from typing import Set
 from graph import *
 import heapq
 
@@ -8,16 +7,12 @@ PRINT = False
 def heuristic(node_id1, node_id2, nodes, dijkstra=False):
     if dijkstra:
         return 0
-    # sx, sy = node_id1.split('_')
-    # ex, ey = node_id2.split('_')
     sx, sy = nodes[node_id1].x,nodes[node_id1].y
     ex, ey = nodes[node_id2].x,nodes[node_id2].y
     return round((float(sx)-float(ex))**2+(float(sy)-float(ey))**2)**0.5
 
 
 def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
-    global PLOT
-    global PLOT_EXT
     global PRINT
 
     nodes = in_graph.nodes
@@ -60,15 +55,9 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
 
             if PRINT:
                 print(f"\tneighbor:{neighbor_id}, {neighbor[edge_weight_idx]}")
-                # if PLOT:
-                #     plot_edges(edges,nodes)
-                #     plot_nodes_color(nodes, current_id, open_lst, closed_lst)
-                #     plt.show()
-
             g = gValues[current_id] + neighbor[edge_weight_idx]
-            h = heuristic(neighbor_id,end_id, nodes,dijkstra)
+            h = heuristic(neighbor_id, end_id, nodes, dijkstra)
             f = g+h
-
             if g > gValues.get(neighbor_id,math.inf):
                 if PRINT:
                     print(f"\t\tcase: not opt")
@@ -87,10 +76,6 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
         if PRINT:
             print(f"open: {open_lst}")
             print(f"closed: {closed_lst}")
-        # if PLOT_EXT:
-        #     plot_edges(edges,nodes)
-        #     plot_nodes_color(nodes, current_id, open_lst, closed_lst)
-        #     plt.show()
     if PRINT:
         print("FAIL")
     return None
