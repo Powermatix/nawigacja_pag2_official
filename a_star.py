@@ -105,7 +105,7 @@ def reconstruct_path(current_id,lastNodeEdge):
         current_id = lastNodeEdge[current_id][0]
     return path
 
-def astar_wrapper(start_id, end_id, in_graph : Graph, shortest=False):
+def astar_wrapper(start_id, end_id, in_graph, shortest=False):
     path = astar(start_id,end_id,in_graph,shortest)
     if path is None:
         return None
