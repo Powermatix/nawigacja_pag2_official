@@ -1,16 +1,17 @@
+from typing import Set
 from graph import *
 import heapq
 
 # tylko do debugowania
 PRINT = False
 
-def heuristic(node_id1 : str, node_id2 : str, dijkstra=False):
+def heuristic(node_id1, node_id2, nodes, dijkstra=False):
     if dijkstra:
         return 0
-    sx, sy = node_id1.split('_')
-    ex, ey = node_id2.split('_')
-    # sx, sy = nodes[node_id1].x,nodes[node_id1].y
-    # ex, ey = nodes[node_id2].x,nodes[node_id2].y
+    # sx, sy = node_id1.split('_')
+    # ex, ey = node_id2.split('_')
+    sx, sy = nodes[node_id1].x,nodes[node_id1].y
+    ex, ey = nodes[node_id2].x,nodes[node_id2].y
     return round((float(sx)-float(ex))**2+(float(sy)-float(ey))**2)**0.5
 
 
@@ -19,9 +20,10 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
     global PLOT_EXT
     global PRINT
 
+    nodes = in_graph.nodes
 
     g = 0
-    h = heuristic(start_id, end_id, dijkstra)
+    h = heuristic(start_id, end_id, nodes,dijkstra)
     f = g+h
 
     gValues = {}
@@ -31,7 +33,7 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
     open_lst = [[f, start_id]]
     heapq.heapify(open_lst)
 
-    closed_lst = []
+    closed_lst = set()
 
     gValues[start_id] = 0
     fValues[start_id] = f
@@ -51,18 +53,20 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
             print(f'current: {current_id}')
         if current_id == end_id:
             return reconstruct_path(current_id,lastNodeEdge)
+
         # neighbor to tuple zawierający: (edge_id, neighbor_id, neighbor_weight, neighbor_length)
         for neighbor in in_graph.get_neighbors(current_id):
+            neighbor_id = neighbor[1]
+
             if PRINT:
-                print(f"\tneighbor:{neighbor[1]}, {neighbor[edge_weight_idx]}")
+                print(f"\tneighbor:{neighbor_id}, {neighbor[edge_weight_idx]}")
                 # if PLOT:
                 #     plot_edges(edges,nodes)
                 #     plot_nodes_color(nodes, current_id, open_lst, closed_lst)
                 #     plt.show()
-            neighbor_id = neighbor[1]
 
             g = gValues[current_id] + neighbor[edge_weight_idx]
-            h = heuristic(neighbor_id,end_id, dijkstra)
+            h = heuristic(neighbor_id,end_id, nodes,dijkstra)
             f = g+h
 
             if g > gValues.get(neighbor_id,math.inf):
@@ -76,11 +80,10 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
                 heapq.heappush(open_lst,[f,neighbor_id])
                 gValues[neighbor_id] = g
                 fValues[neighbor_id] = f
-
                 lastNodeEdge[neighbor_id] = (current_id,neighbor[0])
                 if PRINT:
                     print(f"\t\tcase: update")
-        closed_lst.append(current_id)
+        closed_lst.add(current_id)
         if PRINT:
             print(f"open: {open_lst}")
             print(f"closed: {closed_lst}")
