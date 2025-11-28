@@ -1,6 +1,6 @@
 from graph import *
 import heapq
-
+import math
 # tylko do debugowania
 PRINT = False
 
@@ -9,7 +9,7 @@ def heuristic(node_id1, node_id2, nodes, dijkstra=False):
         return 0
     sx, sy = nodes[node_id1].x,nodes[node_id1].y
     ex, ey = nodes[node_id2].x,nodes[node_id2].y
-    return round((float(sx)-float(ex))**2+(float(sy)-float(ey))**2)**0.5
+    return math.sqrt((sx - ex)**2 + (sy - ey)**2)
 
 
 def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
@@ -44,8 +44,8 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
 
     while open_lst:
         current_id = heapq.heappop(open_lst)[1]
-        #if current_id in closed_lst:
-        #    continue
+        if current_id in closed_lst:
+           continue
         if PRINT:
             print(f'current: {current_id}')
         if current_id == end_id:
