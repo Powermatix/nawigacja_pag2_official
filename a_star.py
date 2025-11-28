@@ -44,6 +44,8 @@ def astar(start_id, end_id, in_graph : Graph, shortest=False, dijkstra=False):
 
     while open_lst:
         current_id = heapq.heappop(open_lst)[1]
+        #if current_id in closed_lst:
+        #    continue
         if PRINT:
             print(f'current: {current_id}')
         if current_id == end_id:
